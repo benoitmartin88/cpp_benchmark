@@ -2,16 +2,12 @@
 #include <cstdlib>
 #include <algorithm>
 #include <chrono>
-#include <unordered_map>
 #include <iostream>
 
 
-struct MyFixture : public benchmark::Fixture {
-    std::unordered_map<uint16_t, std::vector<double>> data;
-};
-
-BENCHMARK_DEFINE_F(MyFixture, allocate)(benchmark::State& state) {
+void allocate(benchmark::State& state) {
     char* c;
+    std::vector<double> data;
     for (auto _ : state) {
         auto start = std::chrono::high_resolution_clock::now();
         benchmark::DoNotOptimize(c = static_cast<char*>(malloc(state.range(0))));
@@ -21,55 +17,40 @@ BENCHMARK_DEFINE_F(MyFixture, allocate)(benchmark::State& state) {
         state.SetIterationTime(elapsed.count());
 
         free(c);
-
-        data[state.thread_index].push_back(elapsed.count());
+        
+        data.push_back(elapsed.count());
     }
 
-//    std::cout << "> data.size()=" << data.size() << std::endl;
-//    std::cout << "> data[state.thread_index].size()=" << data[state.thread_index].size() << std::endl;
+    assert(data.size() == state.iterations());
 
-    auto& v = data[state.thread_index];
+    state.counters["min"] = benchmark::Counter(*(std::min_element(data.begin(), data.end())), benchmark::Counter::kAvgThreads);
+    state.counters["max"] = benchmark::Counter(*(std::max_element(data.begin(), data.end())), benchmark::Counter::kAvgThreads);
 
-    double min = *(std::min_element(v.begin(), v.end()));
-    double max = *(std::max_element(v.begin(), v.end()));
-
-    state.counters["min"] = min;
-    state.counters["max"] = max;
-    state.counters["spread"] = max - min;
-
-    std::sort(v.begin(), v.end());
-    state.counters["99"] = v[0.99*v.size()];
-    state.counters["99.9"] = v[0.999*v.size()];
-    state.counters["99.99"] = v[0.9999*v.size()];
-    state.counters["99.999"] = v[0.99999*v.size()];
-    state.counters["99.9999"] = v[0.999999*v.size()];
+    std::sort(data.begin(), data.end());
+    state.counters["50"] = benchmark::Counter(data[0.50*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["75"] = benchmark::Counter(data[0.75*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["99"] = benchmark::Counter(data[0.99*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["99.9"] = benchmark::Counter(data[0.999*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["99.99"] = benchmark::Counter(data[0.9999*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["99.999"] = benchmark::Counter(data[0.99999*data.size()], benchmark::Counter::kAvgThreads);
+    state.counters["99.9999"] = benchmark::Counter(data[0.999999*data.size()], benchmark::Counter::kAvgThreads);
     
     data.clear();   // clear map
 }
 
-BENCHMARK_REGISTER_F(MyFixture, allocate)
+BENCHMARK(allocate)
     ->UseManualTime()
-    ->RangeMultiplier(2)->Range(1, 1024000<<10);
-
-/*
-BENCHMARK(allocate)
-    ->ComputeStatistics("spread", [](const std::vector<double>& v) -> double {
-        auto max = *(std::max_element(std::begin(v), std::end(v)));
-        auto min = *(std::min_element(std::begin(v), std::end(v)));
-        return max - min;
-    })
-    ->RangeMultiplier(2)->Range(1, 1024000<<10);
-
+    ->RangeMultiplier(2)->Range(1, 65536);
 
 BENCHMARK(allocate)
-    ->ComputeStatistics("spread", [](const std::vector<double>& v) -> double {
-        auto max = *(std::max_element(std::begin(v), std::end(v)));
-        auto min = *(std::min_element(std::begin(v), std::end(v)));
-        return max - min;
-    })
-    ->RangeMultiplier(2)->Range(1, 1024000<<10)
-    ->Threads(2)
-    ->UseRealTime();
-*/
+    ->UseManualTime()
+    ->RangeMultiplier(2)->Range(1, 65536)
+    ->Threads(2);
+
+BENCHMARK(allocate)
+    ->UseManualTime()
+    ->RangeMultiplier(2)->Range(1, 65536)
+    ->Threads(4);
+
 BENCHMARK_MAIN();
 
