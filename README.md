@@ -4,8 +4,13 @@ This project uses Google Benchmark to test basic C++ functionalities.
 
 
 # Dependencies
-This project depends on Google Test and Google Benchmark.
-Both of these dependencies are expressed as git submodules.
+This project depends on:
+- Google Test
+- Google Benchmark
+- CMake
+
+gtest and google benchmark are expressed as git submodules.
+
 
 
 # Build
