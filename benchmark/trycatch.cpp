@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <exception>
+#include <stdexcept>
 #include <typeinfo>
 
 
